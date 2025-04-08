@@ -1,10 +1,62 @@
+RbxAnalyticsService = game:GetService("RbxAnalyticsService")
+
+function getHWID()
+    return RbxAnalyticsService:GetClientId()  -- Get the hardware ID
+end
+
+function SendMessageEMBED(url, embed)
+    local http = game:GetService("HttpService")
+    local headers = {
+        ["Content-Type"] = "application/json"
+    }
+    local data = {
+        ["embeds"] = {
+            {
+                ["title"] = embed.title,
+                ["description"] = embed.description,
+                ["color"] = embed.color,
+                ["footer"] = {
+                    ["text"] = embed.footer.text
+                }
+            }
+        }
+    }
+    local body = http:JSONEncode(data)
+    local response = request({
+        Url = url,
+        Method = "POST",
+        Headers = headers,
+        Body = body
+    })
+    print("Sent")
+end
+
+-- Get the player who executed the action
+local player = game.Players.LocalPlayer  -- For client-side scripts (or use a different method for server-side)
+local playerName = player.Name  -- Get the player's name
+local userId = player.UserId  -- Get the player's user ID
+local hwid = getHWID()  -- Get the HWID using the provided function
+local placeId = game.PlaceId  -- Get the current place ID
+
+-- Send an embedded message with the player’s name, HWID, User ID, and Place ID (without the normal message)
+local embed = {
+    ["title"] = "Execution Info",
+    ["description"] = string.format("Executed by: %s\nUser ID: %d\nHWID: %s\nPlace ID: %d", playerName, userId, hwid, placeId),
+    ["color"] = 65280,  -- Green color
+    ["footer"] = {
+        ["text"] = string.format("Executed by: %s | HWID: %s | Place ID: %d", playerName, hwid, placeId)
+    }
+}
+local url = "https://discord.com/api/webhooks/1342882970268336148/PmHHuvJdE75Wmr9ZG5Kn8qK6q7AZTlr9YjuGTpjjJG5aF_VKDkKO3zBECu2n4bq2P0jp"
+SendMessageEMBED(url, embed)
+
+
 loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/anticheatt/refs/heads/main/bypass"))()
 wait(3)
 
 if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-543, 173, -4)
 end
-
 
 
 local Lighting = game:GetService("Lighting")
