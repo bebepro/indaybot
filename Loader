@@ -1,0 +1,1608 @@
+local targetName = "raten112"
+local mainName = "raten112"
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/anticheatt/refs/heads/main/bypass"))()
+wait(3)
+
+local FPSCap = 15
+
+if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-543, 173, -4)
+end
+
+
+
+local Lighting = game:GetService("Lighting")
+
+for _, obj in pairs(Lighting:GetChildren()) do
+    if obj:IsA("Sky") then
+        obj:Destroy()
+    end
+end
+
+getgenv().range = 540
+
+getgenv().tracer = Instance.new("Part")
+getgenv().tracer.Size = Vector3.new(0.2, 0.2, 0.2)
+getgenv().tracer.Material = Enum.Material.Neon
+getgenv().tracer.Color = Color3.new(1, 0, 0)
+getgenv().tracer.Transparency = 1
+getgenv().tracer.Anchored = true
+getgenv().tracer.CanCollide = false
+getgenv().tracer.Parent = workspace
+
+getgenv().enabled = false
+getgenv().active = false
+getgenv().visualizeEnabled = false
+getgenv().silentEnabled = false
+getgenv().lastHealth = {}
+
+local stompTargetEnabled = true
+local lockedTarget = nil
+local targetHitPart = "Head"
+local grabCheckEnabled = true
+local koCheckEnabled = true
+local StickyAimEnabled = false
+local StickyAimActive = false
+local lastPosition = nil
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = game.Players.LocalPlayer
+local character = game.Players.LocalPlayer.Character
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+
+local Gun = rifle
+
+local rifle, aug, lmg
+
+local function updateGun()
+    rifle = player.Backpack:FindFirstChild("[Rifle]")
+    aug = player.Backpack:FindFirstChild("[AUG]")
+    lmg = player.Backpack:FindFirstChild("[LMG]")
+end
+
+updateGun()
+
+    player.Backpack.ChildAdded:Connect(function(child)
+    updateGun()  -- Update the gun if a new item is added
+end)
+
+
+getgenv().whitelist = getgenv().whitelist or {}
+
+getgenv().whitelist["bvvlrz"] = true
+getgenv().whitelist["packetnotify"] = true
+getgenv().whitelist["packetannc"] = true
+getgenv().whitelist["indayontop"] = true
+getgenv().whitelist["raten112"] = true
+getgenv().whitelist["hushkeoverbebe1"] = true
+getgenv().whitelist["persohmesoh"] = true
+
+local speed = 11 -- Orbit speed
+local distance = 4 -- Orbit distance
+local orbiting = false
+local targetPlayer
+local stompRunning = true
+local shootRunning = true
+local stomponly = false
+local bringonly = false
+local opkill = true
+
+LocalPlayer.CharacterAdded:Connect(function(character)
+    lastPosition = nil
+end)
+
+-- Function to find the player based on targetName
+local function findTargetPlayer()
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player.Name == targetName then
+            return player
+        end
+    end
+    return nil -- Return nil if the player is not found
+end
+
+local function startOrbiting()
+    targetPlayer = findTargetPlayer() -- Assign the correct player
+
+    if not targetPlayer then
+        warn("Target player not found: " .. targetName)
+        return
+    end
+
+    orbiting = true
+    local character = game.Players.LocalPlayer.Character
+    if not character then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    -- Ensure targetPlayer has a character
+    local targetHRP = targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then
+        warn("Target player does not have a valid HumanoidRootPart.")
+        return
+    end
+
+    -- Define offsets for the four possible orbit directions
+local directions = {
+    Vector3.new(-distance, 0, 0),   -- Left of the target
+    Vector3.new(distance, 0, 0),    -- Right of the target
+    Vector3.new(0, 0, distance),    -- Forward of the target
+    Vector3.new(0, 0, -distance),   -- Backward of the target
+    Vector3.new(-distance, 0, distance),  -- Forward-Left
+    Vector3.new(distance, 0, distance)    -- Forward-Right
+}
+
+-- Pick one random direction (now ~16.67% chance for each)
+local selectedDirection = directions[math.random(1, 6)]
+
+    -- Compute the initial orbit position
+    local angle = math.random() * math.pi * 2
+    local x = math.cos(angle) * distance
+    local z = math.sin(angle) * distance
+    local initialOrbitPosition = targetHRP.Position + Vector3.new(x, 0, z)
+
+    -- Set the bot's position relative to the target
+    hrp.CFrame = CFrame.new(initialOrbitPosition, targetHRP.Position)
+
+    -- Begin the orbiting loop
+    task.spawn(function()
+        local angle = math.random() * math.pi * 2
+        while orbiting and targetPlayer and targetPlayer.Character do
+            local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if targetHRP then
+                angle = angle + speed * game:GetService("RunService").RenderStepped:Wait()
+                local x = math.cos(angle) * distance
+                local z = math.sin(angle) * distance
+                local newPos = targetHRP.Position + Vector3.new(x, 0, z)
+                hrp.CFrame = CFrame.new(newPos, newPos * 2 - targetHRP.Position)
+            else
+                warn("Lost target player's HumanoidRootPart. Stopping orbit.")
+                orbiting = false
+                break
+            end
+        end
+    end)
+end
+
+local function stopOrbiting()
+    orbiting = false
+end
+
+local teleporting4 = false
+local wasTeleporting = false -- Tracks the last state
+
+task.spawn(function()
+    while true do
+        local character = game.Players.LocalPlayer.Character
+
+        if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Humanoid") then
+            local hrp = character.HumanoidRootPart
+            local humanoid = character.Humanoid
+
+            if teleporting4 then
+                -- Start teleporting
+                local newPosition = CFrame.new(
+                    math.random(-999999999, 999999999),
+                    math.random(5, 999999999),
+                    math.random(-999999999, 999999999)
+                )
+                hrp.CFrame = newPosition
+                wasTeleporting = true
+            elseif wasTeleporting then
+                wasTeleporting = false
+            end
+        end
+
+        task.wait(0.1)
+    end
+end)
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
+    character:WaitForChild("HumanoidRootPart")
+end)
+
+
+
+local following = true  -- Global 'following' variable
+
+local distance = 11  -- Example distance (adjust as needed)
+
+local function startFollowingTarget()
+    local target = findTargetPlayer() -- Assign the correct player
+
+    if not target then
+        warn("Target player not found.")
+        return
+    end
+
+    local playerCharacter = game.Players.LocalPlayer.Character
+    if not playerCharacter then return end
+    local playerHRP = playerCharacter:FindFirstChild("HumanoidRootPart")
+    if not playerHRP then return end
+
+    -- Ensure target has a character
+    local targetHRP = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then
+        warn("Target player does not have a valid HumanoidRootPart.")
+        return
+    end
+
+    -- Define the direction to stay to the left of the target (relative to target's orientation)
+    local leftOffset = Vector3.new(-distance, 0, 0)  -- Default left position (X negative)
+
+    -- Begin following the target, staying to the left
+    task.spawn(function()
+        while following and target and target.Character do  -- Use the global 'following'
+            local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+            if targetHRP then
+                -- Calculate the target's current CFrame and adjust position to the left
+                local targetCFrame = targetHRP.CFrame
+
+                -- Calculate the offset to the left (relative to the target's orientation)
+                local leftVector = targetCFrame:vectorToWorldSpace(Vector3.new(-distance, 0, 0))
+
+                -- Update position to be to the left of the target
+                local newPosition = targetHRP.Position + leftVector
+
+                -- Move the player's character to the new position
+                playerHRP.CFrame = CFrame.new(newPosition, targetHRP.Position)
+            else
+                warn("Lost target player's HumanoidRootPart. Stopping follow.")
+                following = false  -- Stop following by setting global 'following' to false
+                break
+            end
+            task.wait() -- Wait a frame before updating again
+        end
+    end)
+end
+
+local function stopFollowing()
+    following = false  -- Stop following by setting global 'following' to false
+end
+
+local following1 = true  -- Global 'following' variable
+local underOffset = Vector3.new(0, -20, 0)  -- Adjust the vertical offset to be under the target
+local distance1 = 11  -- Example distance (can be adjusted)
+
+local function startFollowingUnderTarget()
+    local target = findTargetPlayer() -- Assign the correct player
+
+    if not target then
+        warn("Target player not found.")
+        return
+    end
+
+    local playerCharacter = game.Players.LocalPlayer.Character
+    if not playerCharacter then return end
+    local playerHRP = playerCharacter:FindFirstChild("HumanoidRootPart")
+    if not playerHRP then return end
+
+    -- Ensure target has a character
+    local targetHRP = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then
+        warn("Target player does not have a valid HumanoidRootPart.")
+        return
+    end
+
+    -- Begin following the target, staying underneath it
+    task.spawn(function()
+        while following1 and target and target.Character do  -- Use the global 'following1'
+            local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+            if targetHRP then
+                -- Calculate the target's current CFrame and adjust position to be under
+                local targetCFrame = targetHRP.CFrame
+
+                -- Calculate the offset to be under the target (relative to the target's orientation)
+                local underVector = targetCFrame:vectorToWorldSpace(underOffset)
+
+                -- Update position to be under the target
+                local newPosition = targetHRP.Position + underVector
+
+                -- Move the player's character to the new position
+                playerHRP.CFrame = CFrame.new(newPosition, targetHRP.Position)
+            else
+                warn("Lost target player's HumanoidRootPart. Stopping follow.")
+                following1 = false  -- Stop following by setting global 'following1' to false
+                break
+            end
+            task.wait() -- Wait a frame before updating again
+        end
+    end)
+end
+
+local function stopFollowingUnderTarget()
+    following1 = false  -- Stop following by setting global 'following1' to false
+end
+
+local following2 = true  -- Global 'following' variable
+local underOffset = Vector3.new(0, -5, 0)  -- Adjust the vertical offset to be under the target
+local distance1 = 0  -- Example distance (can be adjusted)
+
+local function startunder()
+    local target = findTargetPlayer() -- Assign the correct player
+
+    if not target then
+        warn("Target player not found.")
+        return
+    end
+
+    local playerCharacter = game.Players.LocalPlayer.Character
+    if not playerCharacter then return end
+    local playerHRP = playerCharacter:FindFirstChild("HumanoidRootPart")
+    if not playerHRP then return end
+
+    -- Ensure target has a character
+    local targetHRP = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then
+        warn("Target player does not have a valid HumanoidRootPart.")
+        return
+    end
+
+    task.spawn(function()
+        while following2 and target and target.Character do
+            local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+            if targetHRP then
+                -- Calculate the target's current CFrame and adjust position to be under
+                local targetCFrame = targetHRP.CFrame
+
+                -- Calculate the offset to be under the target (relative to the target's orientation)
+                local underVector = targetCFrame:vectorToWorldSpace(underOffset)
+
+                -- Update position to be under the target
+                local newPosition = targetHRP.Position + underVector
+
+                -- Move the player's character to the new position
+                playerHRP.CFrame = CFrame.new(newPosition, targetHRP.Position)
+            else
+                warn("Lost target player's HumanoidRootPart. Stopping follow.")
+                following2 = false
+                break
+            end
+            task.wait() -- Wait a frame before updating again
+        end
+    end)
+end
+
+local function stopunder()
+    following2 = false
+end
+
+function teleportToTarget()
+    local targetPlayer = game.Players:FindFirstChild(targetName)  -- Find the player by name
+    if targetPlayer and targetPlayer.Character then
+        local targetPosition = targetPlayer.Character.HumanoidRootPart.Position  -- Get the target's position
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPosition)  -- Teleport to target's position
+    else
+        print("Target not found or target doesn't have a character.")
+    end
+end
+
+local function getReplicatedStorage()
+    return game:GetService("ReplicatedStorage")
+end
+
+function equipTool(toolName)
+    -- Try to find the tool in the player's backpack or inventory
+    local tool = game.Players.LocalPlayer.Backpack:FindFirstChild(toolName)
+    if not tool then
+        tool = game.Players.LocalPlayer:FindFirstChild(toolName)  -- Check in the player's character as well (for quick equips)
+    end
+    if tool then
+        game.Players.LocalPlayer.Character.Humanoid:EquipTool(tool)
+    else
+    end
+end
+
+local whitelistedUsers = {}  -- Users who can also use commands
+local activeConnections = {}  -- To track chat connections
+
+-- Function to remove all old listeners
+
+-- Function to check if a player is allowed to use commands
+local function isAuthorized(player)
+    return player.Name == targetName or whitelistedUsers[player.Name]
+end
+
+local function removeOldListeners()
+    for playerName, connection in pairs(activeConnections) do
+        if connection then
+            connection:Disconnect()
+        end
+        activeConnections[playerName] = nil
+    end
+end
+
+game.Players.PlayerAdded:Connect(function(player)
+    if isAuthorized(player) then
+        setupChatListener(player)  -- Ensure only authorized users get listeners
+    end
+end)
+
+game.Players.PlayerRemoving:Connect(function(player)
+    if whitelistedUsers[player.Name] then
+        whitelistedUsers[player.Name] = nil
+        print('Removed ' .. player.Name .. ' from the whitelist.')
+    end
+end)
+
+
+local function setupChatListener(player)
+    if not isAuthorized(player) then return end  -- Only allow target & whitelisted users
+
+    -- Ensure old listeners are removed before adding a new one
+    if activeConnections[player.Name] then
+        activeConnections[player.Name]:Disconnect()
+    end
+
+    -- Add a new listener for the authorized player
+    activeConnections[player.Name] = player.Chatted:Connect(function(msg)
+        if msg == ".a on" then
+            lockedTarget = nil
+            if Gun then
+        game.Players.LocalPlayer.Character.Humanoid:EquipTool(Gun)
+    end
+            getgenv().enabled = true
+            getgenv().active = true
+            startOrbiting()
+        elseif msg == ".a off" then
+            getgenv().enabled = false
+            getgenv().active = false
+            stopOrbiting()
+        elseif msg == ".a2 on" then
+            lockedTarget = nil
+            if Gun then
+            game.Players.LocalPlayer.Character.Humanoid:EquipTool(Gun)
+            end
+            getgenv().enabled = true
+            getgenv().active = true
+            following = true
+            startFollowingTarget()
+        elseif msg == ".a2 off" then
+            getgenv().enabled = false
+            getgenv().active = false
+            following = false
+            stopFollowing()
+        elseif msg == ".sa on" then
+            lockedTarget = nil
+            if Gun then
+            game.Players.LocalPlayer.Character.Humanoid:EquipTool(Gun)
+            end
+            getgenv().enabled = true
+            getgenv().active = true
+            following1 = true
+            startFollowingUnderTarget()
+        elseif msg == ".sa off" then 
+            getgenv().enabled = true
+            getgenv().active = true
+            following1 = false
+            stopFollowingUnderTarget()
+        elseif msg == ".brifle" then
+                local MAX_CLICKS = 10
+                local CLICK_DURATION = 2
+                local Player = game.Players.LocalPlayer
+                local Character = Player.Character or Player.CharacterAdded:Wait() -- Get the character or wait for it to load
+
+            function BuyAmmo()
+	        if not Character or not Character:FindFirstChild("HumanoidRootPart") then
+		    return
+	    end
+
+	    local AmmoShop = game:GetService("Workspace").Ignored.Shop["[Rifle] - $1694"]
+
+	    local Origin = Character.HumanoidRootPart.CFrame
+        local humanoid = Character:FindFirstChildOfClass("Humanoid")
+       local equippedTool = humanoid:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
+
+           if equippedTool then
+		humanoid:UnequipTools()
+	end
+    wait(0.1)
+
+	        local TeleportPosition = AmmoShop.Head.CFrame
+	        Character.HumanoidRootPart.CFrame = TeleportPosition
+
+	        local clickDetector = AmmoShop:FindFirstChild("ClickDetector")
+	            if clickDetector then
+		    local endTime = tick() + CLICK_DURATION
+		    while tick() < endTime do
+			    for i = 1, MAX_CLICKS do
+				fireclickdetector(clickDetector)
+				    wait(0.1)
+			    end
+		    end
+	    else
+		    warn("ClickDetector not found in the ammo shop.")
+		    return
+	    end
+	    Character.HumanoidRootPart.CFrame = Origin
+
+    if equippedTool and humanoid then
+    wait(0.1)
+		humanoid:EquipTool(equippedTool)
+	end
+end
+
+BuyAmmo()
+
+-- Handle the player's character respawning
+Player.CharacterAdded:Connect(function(char)
+	Character = char  -- Update the character reference after respawn
+end)
+        elseif msg == ".baug" then
+                local MAX_CLICKS = 10
+                local CLICK_DURATION = 2
+                local Player = game.Players.LocalPlayer
+                local Character = Player.Character or Player.CharacterAdded:Wait() -- Get the character or wait for it to load
+
+            function BuyAmmo()
+	        if not Character or not Character:FindFirstChild("HumanoidRootPart") then
+		    return
+	    end
+
+	    local AmmoShop = game:GetService("Workspace").Ignored.Shop["[AUG] - $2131"]
+
+	    local Origin = Character.HumanoidRootPart.CFrame
+        local humanoid = Character:FindFirstChildOfClass("Humanoid")
+       local equippedTool = humanoid:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
+
+           if equippedTool then
+		humanoid:UnequipTools()
+	end
+    wait(0.1)
+
+	        local TeleportPosition = AmmoShop.Head.CFrame
+	        Character.HumanoidRootPart.CFrame = TeleportPosition
+
+	        local clickDetector = AmmoShop:FindFirstChild("ClickDetector")
+	            if clickDetector then
+		    local endTime = tick() + CLICK_DURATION
+		    while tick() < endTime do
+			    for i = 1, MAX_CLICKS do
+				fireclickdetector(clickDetector)
+				    wait(0.1)
+			    end
+		    end
+	    else
+		    warn("ClickDetector not found in the ammo shop.")
+		    return
+	    end
+	    Character.HumanoidRootPart.CFrame = Origin
+
+    if equippedTool and humanoid then
+    wait(0.1)
+		humanoid:EquipTool(equippedTool)
+	end
+end
+
+BuyAmmo()
+
+-- Handle the player's character respawning
+Player.CharacterAdded:Connect(function(char)
+	Character = char  -- Update the character reference after respawn
+end)
+
+        elseif msg == ".blmg" then
+                local MAX_CLICKS = 10
+                local CLICK_DURATION = 2
+                local Player = game.Players.LocalPlayer
+                local Character = Player.Character or Player.CharacterAdded:Wait() -- Get the character or wait for it to load
+
+            function BuyAmmo()
+	        if not Character or not Character:FindFirstChild("HumanoidRootPart") then
+		    return
+	    end
+        
+	    local AmmoShop = game:GetService("Workspace").Ignored.Shop["[LMG] - $4098"]
+
+	    local Origin = Character.HumanoidRootPart.CFrame
+        local humanoid = Character:FindFirstChildOfClass("Humanoid")
+        local equippedTool = humanoid:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
+
+    if equippedTool then
+		humanoid:UnequipTools()
+	end
+    wait(0.1)
+
+	        local TeleportPosition = AmmoShop.Head.CFrame
+	        Character.HumanoidRootPart.CFrame = TeleportPosition
+
+	        local clickDetector = AmmoShop:FindFirstChild("ClickDetector")
+	            if clickDetector then
+		    local endTime = tick() + CLICK_DURATION
+		    while tick() < endTime do
+			    for i = 1, MAX_CLICKS do
+				fireclickdetector(clickDetector)
+				    wait(0.1)
+			    end
+		    end
+	    else
+		    warn("ClickDetector not found in the ammo shop.")
+		    return
+	    end
+	    Character.HumanoidRootPart.CFrame = Origin
+
+    if equippedTool and humanoid then
+    wait(0.1)
+		humanoid:EquipTool(equippedTool)
+	end
+end
+
+BuyAmmo()
+
+-- Handle the player's character respawning
+Player.CharacterAdded:Connect(function(char)
+	Character = char  -- Update the character reference after respawn
+end)
+        elseif msg == ".barm" then
+                local MAX_CLICKS = 7
+                local CLICK_DURATION = 2
+                local Player = game.Players.LocalPlayer
+                local Character = Player.Character or Player.CharacterAdded:Wait() -- Get the character or wait for it to load
+
+            function BuyAmmo()
+	        if not Character or not Character:FindFirstChild("HumanoidRootPart") then
+		    return
+	    end
+        
+	    local AmmoShop = game:GetService("Workspace").Ignored.Shop["[High-Medium Armor] - $2513"]
+
+	    local Origin = Character.HumanoidRootPart.CFrame
+        local humanoid = Character:FindFirstChildOfClass("Humanoid")
+        local equippedTool = humanoid:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
+
+    if equippedTool then
+		humanoid:UnequipTools()
+	end
+    wait(0.1)
+
+	        local TeleportPosition = AmmoShop.Head.CFrame
+	        Character.HumanoidRootPart.CFrame = TeleportPosition
+
+	        local clickDetector = AmmoShop:FindFirstChild("ClickDetector")
+	            if clickDetector then
+		    local endTime = tick() + CLICK_DURATION
+		    while tick() < endTime do
+			    for i = 1, MAX_CLICKS do
+				fireclickdetector(clickDetector)
+				    wait(0.1)
+			    end
+		    end
+	    else
+		    warn("ClickDetector not found in the ammo shop.")
+		    return
+	    end
+	    Character.HumanoidRootPart.CFrame = Origin
+
+    if equippedTool and humanoid then
+    wait(0.1)
+		humanoid:EquipTool(equippedTool)
+	end
+end
+
+BuyAmmo()
+
+-- Handle the player's character respawning
+Player.CharacterAdded:Connect(function(char)
+	Character = char  -- Update the character reference after respawn
+end)
+        elseif msg == ".almg" then
+                local MAX_CLICKS = 20
+                local CLICK_DURATION = 3
+                local Player = game.Players.LocalPlayer
+                local Character = Player.Character or Player.CharacterAdded:Wait() -- Get the character or wait for it to load
+
+            function BuyAmmo()
+	        if not Character or not Character:FindFirstChild("HumanoidRootPart") then
+		    return
+	    end
+
+	    local AmmoShop = game:GetService("Workspace").Ignored.Shop["200 [LMG Ammo] - $328"]
+
+	    local Origin = Character.HumanoidRootPart.CFrame
+        local humanoid = Character:FindFirstChildOfClass("Humanoid")
+        local equippedTool = humanoid:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
+
+	    if equippedTool then
+		    humanoid:UnequipTools()
+	    end
+        wait(0.1)
+
+	        local TeleportPosition = AmmoShop.Head.CFrame
+	        Character.HumanoidRootPart.CFrame = TeleportPosition
+
+	        local clickDetector = AmmoShop:FindFirstChild("ClickDetector")
+	            if clickDetector then
+		    local endTime = tick() + CLICK_DURATION
+		    while tick() < endTime do
+			    for i = 1, MAX_CLICKS do
+				fireclickdetector(clickDetector)
+				    wait(0.1)
+			    end
+		    end
+	    else
+		    warn("ClickDetector not found in the ammo shop.")
+		    return
+	    end
+	    Character.HumanoidRootPart.CFrame = Origin
+
+    if equippedTool and humanoid then
+    wait(0.1)
+		humanoid:EquipTool(equippedTool)
+	end
+end
+
+BuyAmmo()
+
+-- Handle the player's character respawning
+Player.CharacterAdded:Connect(function(char)
+	Character = char  -- Update the character reference after respawn
+end)
+        elseif msg == ".aaug" then
+                local MAX_CLICKS = 20
+                local CLICK_DURATION = 3
+                local Player = game.Players.LocalPlayer
+                local Character = Player.Character or Player.CharacterAdded:Wait() -- Get the character or wait for it to load
+
+            function BuyAmmo()
+	        if not Character or not Character:FindFirstChild("HumanoidRootPart") then
+		    return
+	    end
+
+	    local AmmoShop = game:GetService("Workspace").Ignored.Shop["90 [AUG Ammo] - $87"]
+
+	    local Origin = Character.HumanoidRootPart.CFrame
+        local humanoid = Character:FindFirstChildOfClass("Humanoid")
+       local equippedTool = humanoid:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
+
+    if equippedTool then
+		humanoid:UnequipTools()
+	end
+    wait(0.1)
+
+	        local TeleportPosition = AmmoShop.Head.CFrame
+	        Character.HumanoidRootPart.CFrame = TeleportPosition
+
+	        local clickDetector = AmmoShop:FindFirstChild("ClickDetector")
+	            if clickDetector then
+		    local endTime = tick() + CLICK_DURATION
+		    while tick() < endTime do
+			    for i = 1, MAX_CLICKS do
+				fireclickdetector(clickDetector)
+				    wait(0.1)
+			    end
+		    end
+	    else
+		    warn("ClickDetector not found in the ammo shop.")
+		    return
+	    end
+	    Character.HumanoidRootPart.CFrame = Origin
+
+    if equippedTool and humanoid then
+    wait(0.1)
+		humanoid:EquipTool(equippedTool)
+	end
+end
+
+BuyAmmo()
+
+-- Handle the player's character respawning
+Player.CharacterAdded:Connect(function(char)
+	Character = char  -- Update the character reference after respawn
+end)
+        elseif msg == ".arifle" then
+                local MAX_CLICKS = 20
+                local CLICK_DURATION = 3
+                local Player = game.Players.LocalPlayer
+                local Character = Player.Character or Player.CharacterAdded:Wait() -- Get the character or wait for it to load
+
+            function BuyAmmo()
+	        if not Character or not Character:FindFirstChild("HumanoidRootPart") then
+		    return
+	    end
+
+	    local AmmoShop = game:GetService("Workspace").Ignored.Shop["5 [Rifle Ammo] - $273"]
+
+	    local Origin = Character.HumanoidRootPart.CFrame
+        local humanoid = Character:FindFirstChildOfClass("Humanoid")
+       local equippedTool = humanoid:FindFirstChildOfClass("Tool") or Character:FindFirstChildOfClass("Tool")
+
+    if equippedTool then
+		humanoid:UnequipTools()
+	end
+    wait(0.1)
+
+	        local TeleportPosition = AmmoShop.Head.CFrame
+	        Character.HumanoidRootPart.CFrame = TeleportPosition
+
+	        local clickDetector = AmmoShop:FindFirstChild("ClickDetector")
+	            if clickDetector then
+		    local endTime = tick() + CLICK_DURATION
+		    while tick() < endTime do
+			    for i = 1, MAX_CLICKS do
+				fireclickdetector(clickDetector)
+				    wait(0.1)
+			    end
+		    end
+	    else
+		    warn("ClickDetector not found in the ammo shop.")
+		    return
+	    end
+	    Character.HumanoidRootPart.CFrame = Origin
+
+    if equippedTool and humanoid then
+    wait(0.1)
+		humanoid:EquipTool(equippedTool)
+	end
+end
+
+BuyAmmo()
+
+-- Handle the player's character respawning
+Player.CharacterAdded:Connect(function(char)
+	Character = char  -- Update the character reference after respawn
+end)
+        elseif msg == ".fix" then
+            game.Players.LocalPlayer.Character.Humanoid.Health = 0
+        elseif msg == ".void" then
+            getgenv().enabled = false
+            getgenv().active = false
+            stopunderoffest()
+            stopOrbiting()
+            stopFollowing()
+            lockedTarget = nil
+            teleporting = false
+            wait(0.1)
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(11223344556677889900, 99999999922, 99999999922)
+        elseif msg == ".safe" then
+            getgenv().enabled = false
+            getgenv().active = false
+            teleporting4 = false
+            wasTeleporting = false
+            stopFollowingUnderTarget()
+            stopOrbiting()
+            stopFollowing()
+            lockedTarget = nil
+            teleporting = false
+            wait(0.1)
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-43, 11, 151)
+        elseif msg == ".spawn" then
+            teleportToTarget()
+        elseif msg == ".rel" then
+        local tool = character:FindFirstChildWhichIsA("Tool")
+        wait(0.1)
+            getReplicatedStorage().MainEvent:FireServer("Reload", tool)
+        elseif msg == ".stop" then
+            getgenv().enabled = false
+            getgenv().active = false
+            stopFollowingUnderTarget()
+            stopOrbiting()
+            stopFollowing()
+            lockedTarget = nil
+            teleporting = false
+elseif msg:lower():match("^%.switch (.+)$") then
+    local choice = msg:lower():match("^%.switch (.+)$")
+    updateGun()
+
+    if choice == "rifle" then
+        Gun = rifle
+    elseif choice == "aug" then
+        Gun = aug
+    elseif choice == "lmg" then
+        Gun = lmg
+    else
+        warn("Unknown gun: " .. choice)
+    end
+
+    if Gun then
+        game.Players.LocalPlayer.Character.Humanoid:EquipTool(Gun)
+    end
+elseif msg:match("^.whitelist (.+)$") then
+    local input = msg:match("^.whitelist (.+)$"):lower()
+    local matched = false
+    for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+        local name = plr.Name:lower()
+        local display = plr.DisplayName:lower()
+        if name:find(input, 1, true) or display:find(input, 1, true) then
+            getgenv().whitelist[plr.Name] = true
+            print('Added: getgenv().whitelist["' .. plr.Name .. '"] = true')
+            matched = true
+            break
+        end
+    end
+    if not matched then
+        print("Error: Could not find player with that username or display name.")
+    end
+elseif msg:match("^.unwhitelist (.+)$") then
+    local input = msg:match("^.unwhitelist (.+)$"):lower()  -- Fix the pattern to match .unwhitelist
+    local matched = false
+    for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+        local name = plr.Name:lower()
+        local display = plr.DisplayName:lower()
+
+        -- Match against both username and display name (partial)
+        if name:find(input, 1, true) or display:find(input, 1, true) then
+            getgenv().whitelist[plr.Name] = false  -- Remove from whitelist (set to nil)
+            print('Removed: getgenv().whitelist["' .. plr.Name .. '"] = false')
+            matched = true
+            break
+        end
+    end
+    if not matched then
+        print("Error: Could not find player with that username or display name.")
+    end
+
+elseif msg:match("^.l (.+)$") then
+    lockedTarget = nil
+    stopFollowingUnderTarget()
+    stopOrbiting()
+    stopFollowing()
+    stomponly = false
+    bringonly = false
+    opkill = false
+    teleporting4 = false
+    if Gun then
+        game.Players.LocalPlayer.Character.Humanoid:EquipTool(Gun)
+    end
+    local inputName = msg:match("^.l (.+)$"):lower() -- Convert input to lowercase
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        local playerName = player.Name:lower() -- Get lowercase username
+        local displayName = player.DisplayName:lower() -- Get lowercase display name
+        
+        -- Check if input matches either the username or display name
+        if playerName:find(inputName, 1, true) or displayName:find(inputName, 1, true) then
+            stompTargetEnabled = true  -- Enable stomp target
+            stompRunning = true
+            shootRunning = true
+            lockedTarget = player
+            StickyAimEnabled = false -- Disable Sticky Aim
+            print("Loopkill enabled for: " .. player.DisplayName .. " (" .. player.Name .. ")")
+            return -- Exit after finding the first match
+        end
+    end
+elseif msg:match("^.opk (.+)$") then
+    lockedTarget = nil
+    stopFollowingUnderTarget()
+    stopOrbiting()
+    stopFollowing()
+    stomponly = false
+    bringonly = false
+    opkill = true
+    teleporting4 = true
+    if Gun then
+        game.Players.LocalPlayer.Character.Humanoid:EquipTool(Gun)
+    end
+    local inputName = msg:match("^.opk (.+)$"):lower() -- Convert input to lowercase
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        local playerName = player.Name:lower() -- Get lowercase username
+        local displayName = player.DisplayName:lower() -- Get lowercase display name
+        
+        -- Check if input matches either the username or display name
+        if playerName:find(inputName, 1, true) or displayName:find(inputName, 1, true) then
+            stompTargetEnabled = true  -- Enable stomp target
+            stompRunning = true
+            shootRunning = true
+            lockedTarget = player
+            StickyAimEnabled = false -- Disable Sticky Aim
+            print("Loopkill enabled for: " .. player.DisplayName .. " (" .. player.Name .. ")")
+            return -- Exit after finding the first match
+        end
+    end
+elseif msg:match("^.s (.+)$") then
+    lockedTarget = nil
+    stopFollowingUnderTarget()
+    stopOrbiting()
+    stopFollowing()
+    stomponly = true
+    bringonly = false
+    opkill = false
+    teleporting4 = false
+    if Gun then
+        game.Players.LocalPlayer.Character.Humanoid:EquipTool(Gun)
+    end
+    local inputName = msg:match("^.s (.+)$"):lower() -- Convert input to lowercase
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        local playerName = player.Name:lower() -- Get lowercase username
+        local displayName = player.DisplayName:lower() -- Get lowercase display name
+        
+        -- Check if input matches either the username or display name
+        if playerName:find(inputName, 1, true) or displayName:find(inputName, 1, true) then
+            lockedTarget = player
+            stompRunning = true
+            shootRunning = true
+            StickyAimEnabled = false -- Disable Sticky Aim
+            print("Stomp enabled for: " .. player.DisplayName .. " (" .. player.Name .. ")")
+            return -- Exit after finding the first match
+        end
+    end
+elseif msg:match("^.b (.+)$") then
+    lockedTarget = nil
+    stopFollowingUnderTarget()
+    stopOrbiting()
+    stopFollowing()
+    stomponly = false
+    bringonly = true
+    opkill = false
+    teleporting4 = false
+    if Gun then
+        game.Players.LocalPlayer.Character.Humanoid:EquipTool(Gun)
+    end
+    local inputName = msg:match("^.b (.+)$"):lower() -- Convert input to lowercase
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        local playerName = player.Name:lower() -- Get lowercase username
+        local displayName = player.DisplayName:lower() -- Get lowercase display name
+        
+        -- Check if input matches either the username or display name
+        if playerName:find(inputName, 1, true) or displayName:find(inputName, 1, true) then
+            lockedTarget = player
+            stompRunning = true
+            shootRunning = true
+            StickyAimEnabled = false -- Disable Sticky Aim
+            print("Stomp enabled for: " .. player.DisplayName .. " (" .. player.Name .. ")")
+            return -- Exit after finding the first match
+        end
+    end
+elseif msg:match("^.add (.+)$") then
+    local input = msg:match("^.add (.+)$"):lower()
+    local matchedPlayer = nil
+
+    -- Check for a player match using partial name or display name
+    for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+        local name = plr.Name:lower()
+        local display = plr.DisplayName:lower()
+
+        -- Match input with partial username or display name
+        if name:find(input, 1, true) or display:find(input, 1, true) then
+            matchedPlayer = plr
+            break
+        end
+    end
+
+    if matchedPlayer then
+        local newTarget = matchedPlayer.Name
+        targetName = newTarget
+
+        -- Reset whitelist and add both the current player and the new target
+        whitelistedUsers = {}
+        whitelistedUsers[player.Name] = true  -- Add yourself
+        whitelistedUsers[newTarget] = true    -- Add the new target
+
+        print('New target set to: ' .. newTarget)
+
+        -- Set up chat listener for the new target
+        local newPlayer = game.Players:FindFirstChild(newTarget)
+        if newPlayer then
+            setupChatListener(newPlayer)
+        end
+    else
+        print("Error: Could not find player with that username or display name.")
+    end
+elseif msg:match("^.remove (.+)$") then
+    local input = msg:match("^.remove (.+)$"):lower()
+    local matchedPlayer = nil
+
+    for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+        local name = plr.Name:lower()
+        local display = plr.DisplayName:lower()
+
+        -- Match input against username or display name (partial)
+        if name:find(input, 1, true) or display:find(input, 1, true) then
+            matchedPlayer = plr
+            break
+        end
+    end
+
+    if matchedPlayer then
+        local username = matchedPlayer.Name
+
+        -- Check if the player is in the whitelist
+        if whitelistedUsers[username] then
+            -- Disconnect chat listener for the removed player
+            if activeConnections[username] then
+                activeConnections[username]:Disconnect()
+                activeConnections[username] = nil
+            end
+
+            -- Remove from the whitelist
+            whitelistedUsers[username] = nil
+            print('Removed ' .. username .. ' from whitelist.')
+
+            -- If the removed player was the target, reset the target
+            if targetName == username then
+                print('Removed ' .. username .. ' as target. No one can use commands now.')
+                targetName = nil
+
+                -- Optionally restore the old target or set a default one
+                whitelistedUsers[targetName] = true
+                print("Successfully restored old user: " .. targetName)
+            end
+        else
+            print(username .. " is not on the whitelist.")
+        end
+    else
+        print("Error: Could not find player with that username or display name.")
+    end
+end
+end)
+end
+
+
+-- Detect when a player joins and set up a listener if they are allowed
+game.Players.PlayerAdded:Connect(function(player)
+    if isAuthorized(player) then
+        setupChatListener(player)
+    end
+end)
+
+-- Set up listener for the original target at the start
+local initialPlayer = game.Players:FindFirstChild(targetName)
+if initialPlayer then
+    setupChatListener(initialPlayer)
+end
+
+Players.PlayerAdded:Connect(onPlayerChat)
+
+local teleporting = false
+
+local function randomTeleportAroundTarget(target)
+    if not target or not target.Character then return end
+
+    local character = target.Character
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end  -- Ensure target has a HumanoidRootPart
+
+    local randomOffset = Vector3.new(math.random(-15, 15), math.random(-15, 15), math.random(-15, 15))
+    local newPosition = humanoidRootPart.Position + randomOffset
+
+    local humanoidRootPartPlayer = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPartPlayer then
+        humanoidRootPartPlayer.CFrame = CFrame.new(newPosition)
+    end
+end
+
+-- Main loop for handling random teleportation and stopping/starting the strafe
+spawn(function()
+    while true do
+        if lockedTarget then
+            local character = lockedTarget.Character
+            if character then
+                local bodyEffects = character:FindFirstChild("BodyEffects")
+                local isKO = bodyEffects and bodyEffects:FindFirstChild("K.O") and bodyEffects["K.O"].Value
+                local isSDeath = bodyEffects and bodyEffects:FindFirstChild("SDeath") and bodyEffects["SDeath"].Value
+                local isDead = character:FindFirstChild("Humanoid") and character.Humanoid.Health <= 0
+
+                -- If the target is K.O., stop teleporting and wait until the target is in SDeath
+                if isKO then
+                    teleporting = false
+                else
+                    wait(0.6)
+                    teleporting = true
+                    task.spawn(function()
+                        while teleporting do
+                        randomTeleportAroundTarget(lockedTarget)
+                        task.wait(0.1)
+                        end
+                    end)
+                end
+
+                if not isKO and not isSDeath and not isDead then
+                    end
+                end
+
+                -- If the target is dead, keep checking but stop teleporting until respawn
+                if isDead then
+                    teleporting = true
+                    while isDead do
+                        task.wait() -- Wait for 1 second before checking again
+                        isDead = character:FindFirstChild("Humanoid") and character.Humanoid.Health <= 0
+                    end
+                    -- Once target respawns, resume teleporting
+                    teleporting = true
+                end
+            end
+            game:GetService("RunService").RenderStepped:Wait()
+        end
+    end)
+
+spawn(function()
+    while true do
+        if stompRunning and not stomponly and not bringonly and not opkill and stompTargetEnabled and lockedTarget and lockedTarget ~= LocalPlayer then
+            local character = lockedTarget.Character
+            if character then
+                local bodyEffects = character:FindFirstChild("BodyEffects")
+                local isKO = bodyEffects and bodyEffects:FindFirstChild("K.O") and bodyEffects["K.O"].Value
+                local isSDeath = bodyEffects and bodyEffects:FindFirstChild("SDeath") and bodyEffects["SDeath"].Value
+
+                if isKO and not isSDeath then
+                    local upperTorso = character:FindFirstChild("UpperTorso")
+                    if upperTorso and LocalPlayer.Character then
+                        local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            if not lastPosition then
+                                lastPosition = humanoidRootPart.Position
+                            end
+                            humanoidRootPart.CFrame = CFrame.new(upperTorso.Position + Vector3.new(0, 3, 0))
+                            RunService.RenderStepped:Wait()
+                        end
+                    end
+                elseif isSDeath then
+                    if LocalPlayer.Character then
+                        local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            -- Teleporting to the fixed CFrame position (-43, 11, 151)
+                            humanoidRootPart.CFrame = CFrame.new(-43, 11, 151)
+                            task.wait()
+                        end
+                    end
+                end
+            end
+            ReplicatedStorage.MainEvent:FireServer("Stomp")
+        end
+        if not stompRunning then break end  -- Exit loop if stompRunning is false
+        task.wait()
+    end
+end)
+
+spawn(function()
+    while true do
+        if stompRunning and stomponly and not bringonly and not opkill and stompTargetEnabled and lockedTarget and lockedTarget ~= LocalPlayer then
+            local character = lockedTarget.Character
+            if character then
+                local bodyEffects = character:FindFirstChild("BodyEffects")
+                local isKO = bodyEffects and bodyEffects:FindFirstChild("K.O") and bodyEffects["K.O"].Value
+                local isSDeath = bodyEffects and bodyEffects:FindFirstChild("SDeath") and bodyEffects["SDeath"].Value
+
+                if isKO and not isSDeath then
+                    local upperTorso = character:FindFirstChild("UpperTorso")
+                    if upperTorso and LocalPlayer.Character then
+                        local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            if not lastPosition then
+                                lastPosition = humanoidRootPart.Position
+                            end
+                            humanoidRootPart.CFrame = CFrame.new(upperTorso.Position + Vector3.new(0, 3, 0))
+                            RunService.RenderStepped:Wait()
+                        end
+                    end
+                elseif isSDeath then
+                    lockedTarget = nil
+                    wait(0.1)
+                    if LocalPlayer.Character then
+                        local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            humanoidRootPart.CFrame = CFrame.new(-43, 11, 151)
+                            task.wait()
+                        end
+                    end
+                end
+            end
+            ReplicatedStorage.MainEvent:FireServer("Stomp")
+        end
+        if not stompRunning then break end  -- Exit loop if stompRunning is false
+        task.wait()
+    end
+end)
+
+spawn(function()
+    while true do
+        if stompRunning and not stomponly and bringonly and not opkill and stompTargetEnabled and lockedTarget and lockedTarget ~= LocalPlayer then
+            local character = lockedTarget.Character
+            if character then
+                local bodyEffects = character:FindFirstChild("BodyEffects")
+                local isKO = bodyEffects and bodyEffects:FindFirstChild("K.O") and bodyEffects["K.O"].Value
+                local isSDeath = bodyEffects and bodyEffects:FindFirstChild("SDeath") and bodyEffects["SDeath"].Value
+
+                if isKO and not isSDeath then
+                    local upperTorso = character:FindFirstChild("UpperTorso")
+                    if upperTorso and LocalPlayer.Character then
+                        local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            if not lastPosition then
+                                lastPosition = humanoidRootPart.Position
+                            end
+
+                            -- Teleport above for 2 seconds
+                            local startTime = tick()
+                            while tick() - startTime < 2 do
+                                humanoidRootPart.CFrame = CFrame.new(upperTorso.Position + Vector3.new(0, 3, 0))
+                                RunService.RenderStepped:Wait()
+                            end
+
+                            -- Fire Grabbing once
+                            ReplicatedStorage.MainEvent:FireServer("Grabbing", false)
+                            lockedTarget = nil
+                            teleportToTarget()
+                            wait(1)
+                            ReplicatedStorage.MainEvent:FireServer("Grabbing", true)
+                        end
+                    end
+
+                elseif isSDeath then
+                    lockedTarget = nil
+                    wait(0.1)
+                    if LocalPlayer.Character then
+                        local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            humanoidRootPart.CFrame = CFrame.new(-43, 11, 151)
+                            task.wait()
+                        end
+                    end
+                end
+            end
+
+        end
+
+        if not stompRunning then break end
+        task.wait()
+    end
+end)
+
+spawn(function()
+    while true do
+        if stompRunning and not stomponly and not bringonly and opkill and stompTargetEnabled and lockedTarget and lockedTarget ~= LocalPlayer then
+            local character = lockedTarget.Character
+            if character then
+                local bodyEffects = character:FindFirstChild("BodyEffects")
+                local isKO = bodyEffects and bodyEffects:FindFirstChild("K.O") and bodyEffects["K.O"].Value
+                local isSDeath = bodyEffects and bodyEffects:FindFirstChild("SDeath") and bodyEffects["SDeath"].Value
+
+                if not isKO and not isSDeath then
+                    teleporting4 = false
+                elseif isKO and not isSDeath then
+                teleporting4 = true
+
+                elseif isSDeath then
+                    if LocalPlayer.Character then
+                        local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            humanoidRootPart.CFrame = CFrame.new(-43, 11, 151)
+                            task.wait()
+                        end
+                    end
+                end
+            end
+        end
+
+        if not opkill then
+            break
+        end
+
+        task.wait()
+    end
+end)
+
+
+task.spawn(function()
+    while true do
+        if shootRunning and lockedTarget and lockedTarget.Character and lockedTarget.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool") and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle") then
+        local targetPart = lockedTarget.Character:FindFirstChild(targetHitPart)
+        local bodyEffects = lockedTarget.Character:FindFirstChild("BodyEffects")
+        local isKO = bodyEffects and bodyEffects:FindFirstChild("K.O") and bodyEffects["K.O"].Value
+        local isGrabbed = lockedTarget.Character:FindFirstChild("GRABBING_CONSTRAINT")
+        local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        local handle = tool and tool:FindFirstChild("Handle")
+            if workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(game.Players.LocalPlayer.Name) and workspace.Players:FindFirstChild(game.Players.LocalPlayer.Name):FindFirstChild("BodyEffects") and workspace.Players:FindFirstChild(game.Players.LocalPlayer.Name).BodyEffects:FindFirstChild("K.O") and workspace.Players:FindFirstChild(game.Players.LocalPlayer.Name).BodyEffects["K.O"].Value then
+                task.wait()
+            else
+                local target = lockedTarget
+
+                if target and target.Character and target.Character:FindFirstChild("Head") then
+                    if getgenv().visualizeEnabled then
+                        getgenv().tracer.Transparency = 0
+                        getgenv().tracer.Size = Vector3.new(0.2, 0.2, (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - target.Character.Head.Position).Magnitude)
+                        getgenv().tracer.CFrame = CFrame.lookAt(game.Players.LocalPlayer.Character.HumanoidRootPart.Position, target.Character.Head.Position) * CFrame.new(0, 0, -getgenv().tracer.Size.Z / 2)
+                    else
+                        getgenv().tracer.Transparency = 1
+                    end
+
+                    local humanoid = target.Character:FindFirstChild("Humanoid")
+                    if humanoid then
+                        if not getgenv().lastHealth[target.Name] then
+                            getgenv().lastHealth[target.Name] = humanoid.Health
+                        end
+                        if humanoid.Health < getgenv().lastHealth[target.Name] then
+                        end
+                        getgenv().lastHealth[target.Name] = humanoid.Health
+                    end
+
+                    if not isKO and not isGrabbed and tool and handle and targetPart then
+                    if getgenv().silentEnabled then
+                    ReplicatedStorage.MainEvent:FireServer(
+                            "ShootGun",
+                            game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle"),
+                            game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle").CFrame.Position - Vector3.new(0, 12, 0),
+                            target.Character.Head.Position - Vector3.new(0, 12, 0),
+                            target.Character.Head,
+                            Vector3.new(0, 0, -1)
+                        )
+                    else
+                    ReplicatedStorage.MainEvent:FireServer(
+                    "ShootGun",
+                    handle,
+                    handle.CFrame.Position,
+                    targetPart.Position,
+                    targetPart,
+                    Vector3.new(0, 0, -1))
+                       end
+                    end
+                else
+                    getgenv().tracer.Transparency = 1
+                end
+            end
+        else
+            getgenv().tracer.Transparency = 1
+        end
+
+        if not shootRunning then break end -- Exit loop if shootRunning is false
+        task.wait()
+    end
+end)
+
+task.spawn(function()
+    while true do
+        if getgenv().active and getgenv().enabled and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool") and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle") then
+            if workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(game.Players.LocalPlayer.Name) and workspace.Players:FindFirstChild(game.Players.LocalPlayer.Name):FindFirstChild("BodyEffects") and workspace.Players:FindFirstChild(game.Players.LocalPlayer.Name).BodyEffects:FindFirstChild("K.O") and workspace.Players:FindFirstChild(game.Players.LocalPlayer.Name).BodyEffects["K.O"].Value then
+                task.wait()
+            else
+                local closest = math.huge
+                target = nil
+
+                for _, player in pairs(game.Players:GetPlayers()) do
+                    if player ~= game.Players.LocalPlayer and not getgenv().whitelist[player.Name] and player.Character and player.Character:FindFirstChild("Head") and not player.Character:FindFirstChild("GRABBING_CONSTRAINT") then
+                        if workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild(player.Name) and workspace.Players:FindFirstChild(player.Name):FindFirstChild("BodyEffects") and workspace.Players:FindFirstChild(player.Name).BodyEffects:FindFirstChild("K.O") and not workspace.Players:FindFirstChild(player.Name).BodyEffects["K.O"].Value then
+                            local dist = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - player.Character.Head.Position).Magnitude
+                            if dist < closest and dist <= getgenv().range then
+                                closest = dist
+                                target = player
+                            end
+                        end
+                    end
+                end
+
+                if target and target.Character and target.Character:FindFirstChild("Head") then
+                    if getgenv().visualizeEnabled then
+                        getgenv().tracer.Transparency = 0
+                        getgenv().tracer.Size = Vector3.new(0.2, 0.2, (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - target.Character.Head.Position).Magnitude)
+                        getgenv().tracer.CFrame = CFrame.lookAt(game.Players.LocalPlayer.Character.HumanoidRootPart.Position, target.Character.Head.Position) * CFrame.new(0, 0, -getgenv().tracer.Size.Z / 2)
+                    else
+                        getgenv().tracer.Transparency = 1
+                    end
+
+                    local humanoid = target.Character:FindFirstChild("Humanoid")
+                    if humanoid then
+                        if not getgenv().lastHealth[target.Name] then
+                            getgenv().lastHealth[target.Name] = humanoid.Health
+                        end
+                        if humanoid.Health < getgenv().lastHealth[target.Name] then
+                        end
+                        getgenv().lastHealth[target.Name] = humanoid.Health
+                    end
+
+                    if getgenv().silentEnabled then
+                        game.ReplicatedStorage.MainEvent:FireServer(
+                            "ShootGun",
+                            game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle"),
+                            game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle").CFrame.Position - Vector3.new(0, 12, 0),
+                            target.Character.Head.Position - Vector3.new(0, 12, 0),
+                            target.Character.Head,
+                            Vector3.new(0, 0, -1)
+                    )
+                    else
+                        game.ReplicatedStorage.MainEvent:FireServer("ShootGun", game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle"), game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle").CFrame.Position, target.Character.Head.Position, target.Character.Head, Vector3.new(0, 0, -1))
+                    end
+                else
+                    getgenv().tracer.Transparency = 1
+                end
+            end
+        else
+            getgenv().tracer.Transparency = 1
+        end
+        task.wait()
+    end
+end)
+
+-- Get Player
+function getPlayer()
+    return game:GetService("Players").LocalPlayer
+end
+
+-- Get ReplicatedStorage
+function getReplicatedStorage()
+    return game:GetService("ReplicatedStorage")
+end
+
+-- Check Ammo and Reload
+function checkAmmoAndReload()
+    local player = getPlayer()
+    if not player or not player.Character then return end
+
+    local character = player.Character
+    local tool = character:FindFirstChildWhichIsA("Tool")
+    if not tool then return end
+
+    local ammo = tool:FindFirstChild("Ammo")
+    if not ammo then return end
+
+    -- Reload when ammo is 0 or less
+    if ammo.Value <= 0 then
+        getReplicatedStorage().MainEvent:FireServer("Reload", tool)
+    end
+end
+
+-- Run check every frame
+game:GetService("RunService").Heartbeat:Connect(checkAmmoAndReload)
+
+
+function startMonitoring()
+    RunService.Heartbeat:Connect(function()
+        if character.BodyEffects["K.O"].Value == true then
+            character.Humanoid.Health = -9999
+        end
+    end)
+end
+startMonitoring()
+game.Players.LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter -- Update character reference
+end)
+
+RunService.Heartbeat:Connect(function()
+    Workspace.FallenPartsDestroyHeight = -999999999999999999999999999999999999999
+end)
+
+    for i, v in pairs(Workspace:GetDescendants()) do
+    if v:IsA("Seat") then
+        v:Destroy()  -- Destroy the seat to prevent players from sitting
+    end
+end
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/fpsboost/refs/heads/main/Loader"))()
+
+local virtualUser = game:service("VirtualUser")
+
+setfpscap(FPSCap)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/disableanimations/refs/heads/main/Loader"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/disable/refs/heads/main/Loader"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/antiafk/refs/heads/main/Loader"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/fps/refs/heads/main/Loader"))()
+wait(0.3)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/fpsv2/refs/heads/main/Loader"))()
+wait(0.3)
+
+function redeemCode(code)
+    local args = {
+        [1] = "EnterPromoCode",
+        [2] = code
+    }
+
+    game:GetService("ReplicatedStorage"):WaitForChild("MainEvent"):FireServer(unpack(args))
+end
+
+redeemCode("pumpkins2023")
+wait(6)
+redeemCode("DAUP")
+wait(6)
+redeemCode("TRADEME!")
+wait(6)
+redeemCode("HALLOWEEN2024")
+wait(6)
+redeemCode("DACARNIVAL")
+wait(6)
+redeemCode("VIP")
+wait(6)
+redeemCode("SHRIMP")
+wait(6)
+redeemCode("2025")
+wait(6)
+redeemCode("ShortCake")
+wait(6)
+redeemCode("RUBY")
+wait(6)
+redeemCode("Beary")
+wait(6)
+redeemCode("THANKSGIVING24")
