@@ -1,6 +1,3 @@
-local targetName = "raten112"
-local mainName = "raten112"
-
 loadstring(game:HttpGet("https://raw.githubusercontent.com/bebepro/anticheatt/refs/heads/main/bypass"))()
 wait(3)
 
